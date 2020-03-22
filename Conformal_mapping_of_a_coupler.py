@@ -2,155 +2,240 @@ import numpy as np
 from scipy.constants import epsilon_0
 epsilon=11.75
 
+'''
+This function converts elements of a coupler into complex points
+'''
+def points_coupler(elements):
+    Z_points=np.zeros(len(elements)+1)
+    Z_points[0]=1
+    for i in range(len(elements)):
+        Z_points[i+1]=Z_points[i]+elements[i]
+
+    #return np.array(Z_points, np.complex)
+    return np.array(Z_points)
+
+'''
+This function helps find numerator and denumerator points
+'''
 def create_numerator_and_denumerator_points(points):
-    '''
-    This function helps find numerator and denumerator points
-    '''
-    shape_of_matrix=(len(points)-2)/2
-    #len(points)
-    #print('Shape of matrix=', shape_of_matrix)
-    create_numerator_points=np.zeros(int(shape_of_matrix)-1)
-    create_denumerator_points=np.zeros(len(points)-(int(shape_of_matrix)-1))
-    j=0
-    if shape_of_matrix > 1:
-        for i in range(len(create_numerator_points)):
-            create_numerator_points[i]=points[j+2]
-            j=j+2
-    else:
-        create_numerator_points=None
 
-    if shape_of_matrix > 1:
+    numerator_point_ids = [p for p in np.arange(2,len(points)-2,2)]
+    denumerator_point_ids = [p for p in range(len(points)) if p not in numerator_point_ids]
 
-        create_denumerator_points[0]=points[0]
-        create_denumerator_points[1]=points[1]
-
-        create_denumerator_points[len(create_denumerator_points)-1]=points[len(points)-1]
-        create_denumerator_points[len(create_denumerator_points)-2]=points[len(points)-2]
-        create_denumerator_points[len(create_denumerator_points)-3]=points[len(points)-3]
-
-        k=3
-        for i in range(2, len(create_denumerator_points)-3):
-            create_denumerator_points[i]=points[k]
-            k=k+2
-    else:
-         for i in range(len(create_denumerator_points)):
-                create_denumerator_points[i]=points[i]
-
-    numerator_points=create_numerator_points
-    denumerator_points=create_denumerator_points
-
-    #print('Numerator points', numerator_points)
-    #print('Deumerator points', denumerator_points)
+    numerator_points = np.asarray(points)[numerator_point_ids]
+    denumerator_points = np.asarray(points)[denumerator_point_ids]
 
     return numerator_points, denumerator_points
 
-
+'''
+This function create lists of points
+'''
 def function_for_points(points):
-    '''
-    This function create lists of points
-    '''
-    shape_of_matrix=(len(points)-2)/2
-
-    list_of_points=[points]
-    new_points=points
-
-    if shape_of_matrix > 1:
-        for i in range(1,int(shape_of_matrix)):
-            n=2
-
-            points_part1=new_points[0:n]
-            points_part2=new_points[n:len(new_points)]
-
-            changed_points=np.concatenate((points_part2, points_part1), axis=0)
-            list_of_points.append(changed_points)
-            new_points=changed_points
-    else:
-        list_of_points=[points]
+    result = []
+    for i in range(0, len(points)-2, 2):
+        result.append(np.roll(points, -i))
+    return result
 
 
-    return list_of_points
-
-
+'''
+This function counts Gauss-Chebyshev integral
+'''
 def gauss_chebyshev(numerator_points, denumerator_points, limits, n=100):
-    '''
-    This function counts Gauss-Chebyshev integral
-    '''
     x = np.cos((2*np.arange(n)+1)*np.pi/(2*n))*(limits[1]-limits[0])*0.5+np.mean(limits)
-    y = np.ones(x.shape, np.complex)
+    #y = np.ones(x.shape, np.complex)
+    y = np.ones(x.shape)
+    #print('x', x)
     for p in numerator_points:
+        #print('num', p)
         y *= np.sqrt(np.abs(x-p))
-        if limits[0]<=p:
-            print ('rot -90')
-            y *= 1j
     for p in denumerator_points:
+        #print('den', p)
         y /= np.sqrt(np.abs(x-p))
-        if limits[0]<=p:
-            print ('rot 90')
-            y *= -1j
+    #print('y', y)
     return np.sum(y)*np.pi/n
 
 
+
+
+
 class ConformalMapping:
+    def __init__(self, elements):
+        self.elements=np.asarray(elements)
 
-    def __init__(self, points):
+    def C_l(self):
+        points=points_coupler(self.elements)
+        print(points)
+        #numerator_points, denumerator_points = create_numerator_and_denumerator_points(points)
 
-        self.points=np.asarray(points)
+        shape_of_matrix=int((len(points)-2)/2)
 
-    def cl(self):
+        Q_mat = np.zeros((shape_of_matrix, shape_of_matrix))
+        Phi_mat = np.zeros((shape_of_matrix, shape_of_matrix))
+
         '''
-        Main part
+        This part creates Q martix
         '''
-        shape_of_matrix=(len(self.points)-2)//2
-        print('Shape of matrix=', shape_of_matrix)
 
-        #numerator_points, denumerator_points = create_numerator_and_denumerator_points(self.points)
+        for i in range(shape_of_matrix):
+            counter=0
+            '''
+            Create lists of points
+            '''
+            list_of_points=function_for_points(points)[i]
+            numerator_points, denumerator_points = create_numerator_and_denumerator_points(list_of_points)
 
-        #list_of_points=function_for_points(self.points)
-        list_=function_for_points(self.points)
+            list_numerator_points=list(numerator_points)
+            list_denumerator_points=list(denumerator_points)
 
-        numerator_point_ids = [p for p in np.arange(2, len(self.points)-3, 2)]
-        denumerator_point_ids = [p for p in np.arange(len(self.points)) if p not in numerator_point_ids]
+            limits_of_ground=[list_of_points[len(list_of_points)-1], list_of_points[0]]
 
-        #print (numerator_point_ids, denumerator_point_ids)
 
-        Q_mat = np.zeros(shape_of_matrix)
-        phi_mat = np.zeros(shape_of_matrix)
+            '''
+            This part counts Q of ground
+            '''
+            if i!=0:
+                for k in range(len(limits_of_ground)):
 
-        for i in range(int(shape_of_matrix)):
-            integrals = []
-            for j in range(len(self.points)-1):
-                a_id, b_id = j, j+1
+                    if limits_of_ground[k] in list_numerator_points:
+                        #print('yes', limits[k])
+                        list_numerator_points.extend([limits_of_ground[k]])
 
-                numerator_gc = [p for p in numerator_point_ids]
-                denumerator_gc = [p for p in denumerator_point_ids]
+                    else:
+                        #print('no', limits[k])
+                        list_denumerator_points.remove(limits_of_ground[k])
 
-                if a_id in numerator_point_ids:
-                    numerator_gc.append(a_id)
+
+                Q_ground=gauss_chebyshev(list_numerator_points, list_denumerator_points, limits_of_ground, n=100)
+                print('Q ground', Q_ground)
+
+
+
+
+            else:
+                print('CANT')
+
+
+
+            #print('numerator points before', list_numerator_points)
+            #print('denumerator points before', list_denumerator_points)
+            list_numerator_points=list(numerator_points)
+            list_denumerator_points=list(denumerator_points)
+            '''
+            Create list of limits for Q martix
+            '''
+            Q_list_of_limits=list([])
+            for k in range(1, len(list_of_points)-2, 2):
+                Q_list_of_limits.append( [list_of_points[k], list_of_points[k+1] ])
+
+            #print('List of limits', Q_list_of_limits)
+
+            for j in range(shape_of_matrix):
+                limits=Q_list_of_limits[j]
+                list_numerator_points=list(numerator_points)
+                list_denumerator_points=list(denumerator_points)
+                '''
+                This part checks limits and numerator
+                '''
+                for k in range(len(limits)):
+                    if limits[k] in list_numerator_points:
+                        #print('yes', limits[k])
+                        list_numerator_points.extend([limits[k]])
+
+                    else:
+                        #print('no', limits[k])
+                        list_denumerator_points.remove(limits[k])
+
+
+
+                print('limits Q', limits)
+
+                #print('numerator Q', list_numerator_points)
+                #print('denumerator Q', list_denumerator_points)
+                if limits == [ points[len(points)-1], points[0]]:
+
+                    print('Error', limits)
+                    print('Error ref', limits_of_ground)
+                    id1 = j
+                    id2 = i
+                    print('id', [id1, id2])
+
+
                 else:
-                    denumerator_gc.remove(a_id)
+                    Q_mat[j][i]=gauss_chebyshev(list_numerator_points, list_denumerator_points, limits, n=100)
+                    counter=counter+Q_mat[j][i]
+                    #print('Q_elements',Q_mat[j][i])
 
-                if b_id in numerator_point_ids:
-                    numerator_gc.append(b_id)
-                else:
-                    denumerator_gc.remove(b_id)
+            if i!=0:
+                Q_mat[id1][id2]=Q_ground-counter
 
 
-                numerator_gc_points = list_[i][numerator_gc]
-                denumerator_gc_points = list_[i][denumerator_gc]
-                limits = list_[i][[a_id, b_id]]
+        '''
+        This part creates Phi martix
+        '''
 
-                integral = gauss_chebyshev(numerator_gc_points, denumerator_gc_points, limits)
+        for i in range(shape_of_matrix):
+            phi_reference=0
+            #phi_reference=0
 
-                print (numerator_gc_points, denumerator_gc_points, limits)
-                integrals.append(integral)
-            transform = np.cumsum(integrals).tolist()
-            print (transform)
+            '''
+            Create list of points
+            '''
+            list_of_points=function_for_points(points)[i]
+            numerator_points, denumerator_points = create_numerator_and_denumerator_points(list_of_points)
 
-            potentials = np.imag(transform[:-1:2]-trans)
-            charges = np.real(integrals[1::2])
+            list_numerator_points=list(numerator_points)
+            list_denumerator_points=list(denumerator_points)
+            #print('numerator points before', list_numerator_points)
+            #print('denumerator points before', list_denumerator_points)
 
-            #print (potentials, charges)
-            #phi_mat[:, i] = potentials
-            #Q_mat[:, i] = charges
+            '''
+            Create list of limits for Phi matrix
+            '''
+            Phi_list_of_limits=list([])
+            for k in range(0, len(list_of_points)-2, 2):
+                Phi_list_of_limits.append( [list_of_points[k], list_of_points[k+1] ])
 
-        return list_of_points
+            #print('List of limits', Q_list_of_limits)
+
+
+            for j in range(shape_of_matrix):
+                limits=Phi_list_of_limits[j]
+                list_numerator_points=list(numerator_points)
+                list_denumerator_points=list(denumerator_points)
+                '''
+                This part checks limits and numerator
+                '''
+                for k in range(len(limits)):
+                    if limits[k] in list_numerator_points:
+                        #print('yes', limits[k])
+                        list_numerator_points.extend([limits[k]])
+
+                    else:
+                        #print('no', limits[k])
+                        list_denumerator_points.remove(limits[k])
+
+
+
+                print('limits Phi', limits)
+                #print('numerator Phi', list_numerator_points)
+                #print('denumerator Phi ', list_denumerator_points)
+
+
+
+                Phi_mat[j][i]=phi_reference+gauss_chebyshev(list_numerator_points, list_denumerator_points, limits, n=100)
+                #print(Phi_mat[j][i])
+                phi_reference=Phi_mat[j][i]
+
+
+
+
+        print('Q', Q_mat)
+        print('Phi', Phi_mat)
+        Phi_inv=np.linalg.inv(Phi_mat)
+        print(print('Phi_inv', Phi_inv))
+
+        C=Q_mat*Phi_inv*(epsilon+1)*epsilon_0
+
+
+
+        return C
