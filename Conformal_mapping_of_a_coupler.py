@@ -111,16 +111,10 @@ class ConformalMapping:
             list_of_points = function_for_points(points)[i]
             numerator_points, denumerator_points = create_numerator_and_denumerator_points(list_of_points)
 
-            list_numerator_points_Q = list(numerator_points)
-            list_denumerator_points_Q = list(denumerator_points)
-
-            list_numerator_points_Phi = list(numerator_points)
-            list_denumerator_points_Phi = list(denumerator_points)
-
             # This part counts Q of ground
 
-            list_numerator_points_of_ground = list_numerator_points_Q
-            list_denumerator_points_of_ground = list_denumerator_points_Q
+            list_numerator_points_of_ground = list(numerator_points)
+            list_denumerator_points_of_ground = list(denumerator_points)
             limits_of_ground = [list_of_points[len(list_of_points) - 1], list_of_points[0]]
             if i!=0:
                 list_numerator_points_of_ground, list_denumerator_points_of_ground = check_numerator_and_denumerator(list_numerator_points_of_ground, list_denumerator_points_of_ground, limits_of_ground)
@@ -133,6 +127,7 @@ class ConformalMapping:
             Phi_list_of_limits = create_limits_Phi(list_of_points)
 
             for j in range(shape_of_matrix):
+
                 limits_Q = Q_list_of_limits[j]
                 limits_Phi = Phi_list_of_limits[j]
 
@@ -151,7 +146,7 @@ class ConformalMapping:
                     id2 = i
                 else:
                     Q_mat[j][i] = gauss_chebyshev(list_numerator_points_Q, list_denumerator_points_Q, limits_Q, n=100)
-                    counter=counter+Q_mat[j][i]
+                    counter = counter  + Q_mat[j][i]
 
                 Phi_mat[j][i] = phi_reference + gauss_chebyshev(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi, n=100)
                 phi_reference = Phi_mat[j][i]
