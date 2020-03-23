@@ -36,6 +36,40 @@ def function_for_points(points):
         result.append(np.roll(points, -i))
     return result
 
+'''
+This function create list of limits for Q matrix
+'''
+def create_limits_Q(points):
+    result=list([])
+    for k in range(1, len(points)-2, 2):
+        result.append( [points[k], points[k+1]])
+    return result
+
+'''
+This function create list of limits for Phi matrix
+'''
+def create_limits_Phi(points):
+    result=list([])
+    for k in range(0, len(points)-2, 2):
+        result.append( [points[k], points[k+1]])
+    return result
+
+
+
+'''
+This function checks and compares limits with numerator and denumerator points and it reterns new lists of numerator and denumerator points
+'''
+def check_numerator_and_denumerator(numerator_points, denumerator_points, limits):
+    for k in range(len(limits)):
+        if limits[k] in numerator_points:
+            numerator_points.extend([limits[k]])
+        else:
+            denumerator_points.remove(limits[k])
+
+    return numerator_points, denumerator_points
+
+
+
 
 '''
 This function counts Gauss-Chebyshev integral
@@ -87,45 +121,23 @@ class ConformalMapping:
             list_numerator_points=list(numerator_points)
             list_denumerator_points=list(denumerator_points)
 
-            limits_of_ground=[list_of_points[len(list_of_points)-1], list_of_points[0]]
-
-
             '''
             This part counts Q of ground
             '''
+            list_numerator_points_of_ground=list_numerator_points
+            list_denumerator_points_of_ground=list_denumerator_points
+            limits_of_ground=[list_of_points[len(list_of_points)-1], list_of_points[0]]
             if i!=0:
-                for k in range(len(limits_of_ground)):
-
-                    if limits_of_ground[k] in list_numerator_points:
-                        #print('yes', limits[k])
-                        list_numerator_points.extend([limits_of_ground[k]])
-
-                    else:
-                        #print('no', limits[k])
-                        list_denumerator_points.remove(limits_of_ground[k])
-
-
-                Q_ground=gauss_chebyshev(list_numerator_points, list_denumerator_points, limits_of_ground, n=100)
+                list_numerator_points_of_ground, list_denumerator_points_of_ground=check_numerator_and_denumerator(list_numerator_points_of_ground, list_denumerator_points_of_ground, limits_of_ground)
+                Q_ground=gauss_chebyshev(list_numerator_points_of_ground, list_denumerator_points_of_ground, limits_of_ground, n=100)
                 print('Q ground', Q_ground)
-
-
-
-
-            else:
-                print('CANT')
-
-
 
             #print('numerator points before', list_numerator_points)
             #print('denumerator points before', list_denumerator_points)
-            list_numerator_points=list(numerator_points)
-            list_denumerator_points=list(denumerator_points)
             '''
             Create list of limits for Q martix
             '''
-            Q_list_of_limits=list([])
-            for k in range(1, len(list_of_points)-2, 2):
-                Q_list_of_limits.append( [list_of_points[k], list_of_points[k+1] ])
+            Q_list_of_limits=create_limits_Q(list_of_points)
 
             #print('List of limits', Q_list_of_limits)
 
@@ -134,30 +146,15 @@ class ConformalMapping:
                 list_numerator_points=list(numerator_points)
                 list_denumerator_points=list(denumerator_points)
                 '''
-                This part checks limits and numerator
+                This part checks and compares limits with numerator and denumerator
                 '''
-                for k in range(len(limits)):
-                    if limits[k] in list_numerator_points:
-                        #print('yes', limits[k])
-                        list_numerator_points.extend([limits[k]])
-
-                    else:
-                        #print('no', limits[k])
-                        list_denumerator_points.remove(limits[k])
-
-
-
+                list_numerator_points, list_denumerator_points=check_numerator_and_denumerator(list_numerator_points, list_denumerator_points, limits)
                 print('limits Q', limits)
-
                 #print('numerator Q', list_numerator_points)
                 #print('denumerator Q', list_denumerator_points)
-                if limits == [ points[len(points)-1], points[0]]:
-
-                    print('Error', limits)
-                    print('Error ref', limits_of_ground)
+                if limits == [points[len(points)-1], points[0]]:
                     id1 = j
                     id2 = i
-                    print('id', [id1, id2])
 
 
                 else:
@@ -175,7 +172,6 @@ class ConformalMapping:
 
         for i in range(shape_of_matrix):
             phi_reference=0
-            #phi_reference=0
 
             '''
             Create list of points
@@ -191,9 +187,7 @@ class ConformalMapping:
             '''
             Create list of limits for Phi matrix
             '''
-            Phi_list_of_limits=list([])
-            for k in range(0, len(list_of_points)-2, 2):
-                Phi_list_of_limits.append( [list_of_points[k], list_of_points[k+1] ])
+            Phi_list_of_limits=create_limits_Phi(list_of_points)
 
             #print('List of limits', Q_list_of_limits)
 
@@ -203,27 +197,16 @@ class ConformalMapping:
                 list_numerator_points=list(numerator_points)
                 list_denumerator_points=list(denumerator_points)
                 '''
-                This part checks limits and numerator
+                This part checks and compares limits with numerator and denumerator
                 '''
-                for k in range(len(limits)):
-                    if limits[k] in list_numerator_points:
-                        #print('yes', limits[k])
-                        list_numerator_points.extend([limits[k]])
-
-                    else:
-                        #print('no', limits[k])
-                        list_denumerator_points.remove(limits[k])
-
-
-
-                print('limits Phi', limits)
+                list_numerator_points, list_denumerator_points=check_numerator_and_denumerator(list_numerator_points, list_denumerator_points, limits)
+                print('limits Q', limits)
                 #print('numerator Phi', list_numerator_points)
                 #print('denumerator Phi ', list_denumerator_points)
 
 
 
                 Phi_mat[j][i]=phi_reference+gauss_chebyshev(list_numerator_points, list_denumerator_points, limits, n=100)
-                #print(Phi_mat[j][i])
                 phi_reference=Phi_mat[j][i]
 
 
