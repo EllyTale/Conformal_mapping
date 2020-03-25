@@ -1,6 +1,7 @@
 import numpy as np
-from scipy.constants import epsilon_0
+from scipy.constants import epsilon_0, mu_0
 epsilon=11.75
+mu = 1
 
 
 def points_coupler(elements):
@@ -51,7 +52,7 @@ def create_limits_Phi(points):
     This function create list of limits for Phi matrix
     '''
     result=list([])
-    for k in range(0, len(points)-2, 2):
+    for k in range(0, len(points)-3, 2):
         result.append( [points[k], points[k+1]])
     return result
 
@@ -85,16 +86,13 @@ def gauss_chebyshev(numerator_points, denumerator_points, limits, n=100):
     return np.sum(y)*np.pi/n
 
 
-
-
-
 class ConformalMapping:
+
     def __init__(self, elements):
         self.elements = np.asarray(elements)
 
-    def cl(self):
+    def cl(self, C=None):
         points = points_coupler(self.elements)
-        print('Initial points', points)
 
         shape_of_matrix = int((len(points) - 2)/2)
 
@@ -102,29 +100,17 @@ class ConformalMapping:
         Phi_mat = np.zeros((shape_of_matrix, shape_of_matrix))
 
 
-        # This part creates Q and Phi martix
+        # This part creates Q and Phi matrix
+        Q_list_of_limits = create_limits_Q(points)
+        Phi_list_of_limits = create_limits_Phi(points)
 
         for i in range(shape_of_matrix):
-            counter = 0
-            phi_reference = 0
+            counter_phi=0
 
             list_of_points = function_for_points(points)[i]
             numerator_points, denumerator_points = create_numerator_and_denumerator_points(list_of_points)
 
-            # This part counts Q of ground
-
-            list_numerator_points_of_ground = list(numerator_points)
-            list_denumerator_points_of_ground = list(denumerator_points)
-            limits_of_ground = [list_of_points[len(list_of_points) - 1], list_of_points[0]]
-            if i!=0:
-                list_numerator_points_of_ground, list_denumerator_points_of_ground = check_numerator_and_denumerator(list_numerator_points_of_ground, list_denumerator_points_of_ground, limits_of_ground)
-                Q_ground = gauss_chebyshev(list_numerator_points_of_ground, list_denumerator_points_of_ground, limits_of_ground, n=100)
-
-
-            # Create list of limits for martix
-
-            Q_list_of_limits = create_limits_Q(list_of_points)
-            Phi_list_of_limits = create_limits_Phi(list_of_points)
+            top_points = [points[2*i-1], points[2*i]]
 
             for j in range(shape_of_matrix):
 
@@ -137,31 +123,47 @@ class ConformalMapping:
                 list_numerator_points_Phi = list(numerator_points)
                 list_denumerator_points_Phi = list(denumerator_points)
 
-
                 list_numerator_points_Q, list_denumerator_points_Q = check_numerator_and_denumerator(list_numerator_points_Q, list_denumerator_points_Q, limits_Q)
                 list_numerator_points_Phi, list_denumerator_points_Phi = check_numerator_and_denumerator(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi)
 
-                if limits_Q == [points[len(points) - 1], points[0]]:
-                    id1 = j
-                    id2 = i
+
+                if limits_Q == [points[2*i-1], points[2*i]]:
+                    Q_mat[j][i] = - gauss_chebyshev(list_numerator_points_Q, list_denumerator_points_Q, limits_Q, n=100)
                 else:
                     Q_mat[j][i] = gauss_chebyshev(list_numerator_points_Q, list_denumerator_points_Q, limits_Q, n=100)
-                    counter = counter  + Q_mat[j][i]
-
-                Phi_mat[j][i] = phi_reference + gauss_chebyshev(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi, n=100)
-                phi_reference = Phi_mat[j][i]
 
 
-            if i!=0:
-                Q_mat[id1][id2] = Q_ground - counter
+                if limits_Phi[1] < top_points[0]:
 
+                    Phi_mat[j][i] = counter_phi + gauss_chebyshev(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi, n=100)
+                    counter_phi = Phi_mat[j][i]
+
+                elif limits_Phi[1] == top_points[0]:
+
+                    Phi_mat[j][i] = counter_phi - gauss_chebyshev(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi, n=100)
+                    counter_phi = Phi_mat[j][i]
+
+                elif limits_Phi[1] > top_points[1]:
+
+                    Phi_mat[j][i] = counter_phi + gauss_chebyshev(list_numerator_points_Phi, list_denumerator_points_Phi, limits_Phi, n=100)
+                    counter_phi = Phi_mat[j][i]
 
         print('Q = ', Q_mat)
         print('Phi = ', Phi_mat)
 
         Phi_inv = np.linalg.inv(Phi_mat)
         print(print('Phi_inv = ', Phi_inv))
+        C = np.dot(Q_mat, Phi_inv)*(epsilon + 1)*epsilon_0
 
-        C = Q_mat*Phi_inv*(epsilon + 1)*epsilon_0
+        self.C = C
 
         return C
+
+    def Ll(self):
+
+        Cl = self.C
+        C_inv = np.linalg.inv(Cl)
+
+        L = C_inv*(epsilon + 1)*epsilon_0/(1/(mu*mu_0) + 1/mu_0)
+
+        return L
